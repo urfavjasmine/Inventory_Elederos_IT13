@@ -1,0 +1,472 @@
+@page "/products"
+
+<PageTitle>Product Stock Management</PageTitle>
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3 class="mb-0">Product Stock Management</h3>
+        <div class="d-flex gap-2">
+            <input class="form-control" type="text" placeholder="Search products..." @bind="searchText" @oninput="PerformSearch" style="width: 200px;" />
+            <button class="btn btn-warning" @onclick="SearchProduct">
+                <i class="bi bi-search"></i> Search
+            </button>
+        </div>
+    </div>
+    
+    <!-- Success/Error Messages -->
+    @if (!string.IsNullOrEmpty(successMessage))
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle me-2"></i>
+            <text>@successMessage</text>
+            <button type="button" class="btn-close" @onclick="@(() => successMessage = "")"></button>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            <text>@errorMessage</text>
+            <button type="button" class="btn-close" @onclick="@(() => errorMessage = "")"></button>
+        </div>
+    }
+    
+    <!-- Input Form -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Product ID</label>
+                            <input class="form-control" @bind="product.ProductID" type="number" readonly />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Product Name *</label>
+                            <input class="form-control" @bind="product.ProductName" />
+                            @if (validationErrors.ContainsKey("ProductName"))
+                            {
+                                <small class="text-danger">@validationErrors["ProductName"]</small>
+                            }
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Description</label>
+                            <textarea class="form-control" @bind="product.Description" rows="2"></textarea>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Quantity In Stock *</label>
+                            <input class="form-control" @bind="product.QuantityInStock" type="number" />
+                            @if (validationErrors.ContainsKey("QuantityInStock"))
+                            {
+                                <small class="text-danger">@validationErrors["QuantityInStock"]</small>
+                            }
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Reorder Level *</label>
+                            <input class="form-control" @bind="product.ReorderLevel" type="number" />
+                            @if (validationErrors.ContainsKey("ReorderLevel"))
+                            {
+                                <small class="text-danger">@validationErrors["ReorderLevel"]</small>
+                            }
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Unit Price *</label>
+                            <input class="form-control" @bind="product.UnitPrice" type="number" step="0.01" />
+                            @if (validationErrors.ContainsKey("UnitPrice"))
+                            {
+                                <small class="text-danger">@validationErrors["UnitPrice"]</small>
+                            }
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Category</label>
+                            <input class="form-control" @bind="product.Category" />
+                        </div>
+                        <div class="col-12">
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-primary" @onclick="AddProduct" disabled="@isLoading">
+                                    @if (isLoading)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-1"></span>
+                                        <text>Adding...</text>
+                                    }
+                                    else
+                                    {
+                                        <i class="bi bi-plus-circle me-1"></i>
+                                        <text>Add</text>
+                                    }
+                                </button>
+                                <button class="btn btn-success" @onclick="UpdateProduct" disabled="@isLoading">
+                                    @if (isLoading)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-1"></span>
+                                        <text>Updating...</text>
+                                    }
+                                    else
+                                    {
+                                        <i class="bi bi-pencil-square me-1"></i>
+                                        <text>Update</text>
+                                    }
+                                </button>
+                                <button class="btn btn-info" @onclick="LoadProducts" disabled="@isLoading">
+                                    <i class="bi bi-arrow-clockwise me-1"></i>
+                                    Refresh
+                                </button>
+                                <button class="btn btn-secondary" @onclick="ClearForm">
+                                    <i class="bi bi-x-circle me-1"></i>
+                                    Clear
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Data Grid -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    @if (isLoading && products.Count == 0)
+                    {
+                        <div class="text-center py-4">
+                            <div class="spinner-border" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-2">Loading products...</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <table class="table table-striped table-hover">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Name</th>
+                                    <th>Description</th>
+                                    <th>Stock</th>
+                                    <th>Reorder</th>
+                                    <th>Price</th>
+                                    <th>Category</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @if (filteredProducts != null && filteredProducts.Any())
+                                {
+                                    @foreach (var prod in filteredProducts)
+                                    {
+                                        <tr>
+                                            <td>@prod.ProductID</td>
+                                            <td>@prod.ProductName</td>
+                                            <td>@prod.Description</td>
+                                            <td>
+                                                @if (prod.IsLowStock)
+                                                {
+                                                    <span class="badge bg-warning">@prod.QuantityInStock</span>
+                                                }
+                                                else
+                                                {
+                                                    @prod.QuantityInStock
+                                                }
+                                            </td>
+                                            <td>@prod.ReorderLevel</td>
+                                            <td>@prod.UnitPrice.ToString("C")</td>
+                                            <td>@prod.Category</td>
+                                            <td>
+                                                @if (prod.IsLowStock)
+                                                {
+                                                    <span class="badge bg-warning">Low Stock</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-success">In Stock</span>
+                                                }
+                                            </td>
+                                            <td>
+                                                <button class="btn btn-sm btn-outline-primary" @onclick="() => SelectProduct(prod)">
+                                                    <i class="bi bi-pencil"></i> Edit
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    }
+                                }
+                                else
+                                {
+                                    <tr>
+                                        <td colspan="9" class="text-center">No products found</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private Product product = new Product();
+    private List<Product> products = new List<Product>();
+    private List<Product> filteredProducts = new List<Product>();
+    private string searchText = "";
+    private string successMessage = "";
+    private string errorMessage = "";
+    private bool isLoading = false;
+    private Dictionary<string, string> validationErrors = new Dictionary<string, string>();
+
+    [Inject]
+    private ProductService productService { get; set; } = default!;
+
+    [Inject]
+    private IJSRuntime JSRuntime { get; set; } = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadProducts();
+    }
+
+    private async Task LoadProducts()
+    {
+        try
+        {
+            isLoading = true;
+            products = await productService.GetAllProductsAsync();
+            filteredProducts = products.ToList();
+            ClearMessages();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading products: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void PerformSearch()
+    {
+        if (string.IsNullOrWhiteSpace(searchText))
+        {
+            filteredProducts = products.ToList();
+        }
+        else
+        {
+            filteredProducts = products.Where(p => 
+                p.ProductID.ToString().Contains(searchText, StringComparison.OrdinalIgnoreCase) ||
+                p.ProductName.Contains(searchText, StringComparison.OrdinalIgnoreCase) ||
+                p.Description.Contains(searchText, StringComparison.OrdinalIgnoreCase) ||
+                p.Category.Contains(searchText, StringComparison.OrdinalIgnoreCase)
+            ).ToList();
+        }
+    }
+
+    private async Task SearchProduct()
+    {
+        if (!string.IsNullOrWhiteSpace(searchText))
+        {
+            try
+            {
+                isLoading = true;
+                products = await productService.SearchProductsAsync(searchText);
+                filteredProducts = products.ToList();
+                ClearMessages();
+            }
+            catch (Exception ex)
+            {
+                errorMessage = $"Error searching products: {ex.Message}";
+            }
+            finally
+            {
+                isLoading = false;
+            }
+        }
+        else
+        {
+            await LoadProducts();
+        }
+    }
+
+    private bool ValidateProduct()
+    {
+        validationErrors.Clear();
+
+        if (string.IsNullOrWhiteSpace(product.ProductName))
+        {
+            validationErrors["ProductName"] = "Product name is required";
+        }
+
+        if (product.QuantityInStock < 0)
+        {
+            validationErrors["QuantityInStock"] = "Quantity must be non-negative";
+        }
+
+        if (product.ReorderLevel < 0)
+        {
+            validationErrors["ReorderLevel"] = "Reorder level must be non-negative";
+        }
+
+        if (product.UnitPrice <= 0)
+        {
+            validationErrors["UnitPrice"] = "Unit price must be greater than 0";
+        }
+
+        return validationErrors.Count == 0;
+    }
+
+    private async Task AddProduct()
+    {
+        if (!ValidateProduct())
+        {
+            return;
+        }
+
+        try
+        {
+            isLoading = true;
+            var newProductId = await productService.InsertProductAsync(product);
+            product.ProductID = newProductId;
+            
+            products.Add(product);
+            filteredProducts = products.ToList();
+            
+            successMessage = "Product added successfully!";
+            await ClearForm();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error adding product: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task UpdateProduct()
+    {
+        if (product.ProductID == 0)
+        {
+            errorMessage = "Please select a product to update";
+            return;
+        }
+
+        if (!ValidateProduct())
+        {
+            return;
+        }
+
+        try
+        {
+            isLoading = true;
+            var success = await productService.UpdateProductAsync(product);
+            
+            if (success)
+            {
+                var index = products.FindIndex(p => p.ProductID == product.ProductID);
+                if (index >= 0)
+                {
+                    products[index] = product;
+                    filteredProducts = products.ToList();
+                }
+                
+                successMessage = "Product updated successfully!";
+            }
+            else
+            {
+                errorMessage = "Product not found or update failed";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error updating product: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task ViewProducts()
+    {
+        await LoadProducts();
+    }
+
+    private async Task DeleteProduct()
+    {
+        if (product.ProductID == 0)
+        {
+            errorMessage = "Please select a product to delete";
+            return;
+        }
+
+        var confirmed = await JSRuntime.InvokeAsync<bool>("confirm", $"Are you sure you want to delete '{product.ProductName}'?");
+        if (confirmed)
+        {
+            await DeleteProductById(product.ProductID);
+            await ClearForm();
+        }
+    }
+
+    private async Task DeleteProductById(int id)
+    {
+        try
+        {
+            isLoading = true;
+            var success = await productService.DeleteProductAsync(id);
+            
+            if (success)
+            {
+                products = products.Where(p => p.ProductID != id).ToList();
+                filteredProducts = products.ToList();
+                successMessage = "Product deleted successfully!";
+            }
+            else
+            {
+                errorMessage = "Product not found or delete failed";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error deleting product: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task ClearForm()
+    {
+        product = new Inventory_Elederos_IT13.Models.Product();
+        validationErrors.Clear();
+        ClearMessages();
+    }
+
+    private void SelectProduct(Inventory_Elederos_IT13.Models.Product selectedProduct)
+    {
+        product = new Inventory_Elederos_IT13.Models.Product
+        {
+            ProductID = selectedProduct.ProductID,
+            ProductName = selectedProduct.ProductName,
+            Description = selectedProduct.Description,
+            QuantityInStock = selectedProduct.QuantityInStock,
+            ReorderLevel = selectedProduct.ReorderLevel,
+            UnitPrice = selectedProduct.UnitPrice,
+            Category = selectedProduct.Category
+        };
+        validationErrors.Clear();
+        ClearMessages();
+    }
+
+    private void ClearMessages()
+    {
+        successMessage = "";
+        errorMessage = "";
+    }
+}

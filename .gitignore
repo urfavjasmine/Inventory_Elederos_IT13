@@ -1,0 +1,40 @@
+# Visual Studio files
+.vs/
+bin/
+obj/
+*.user
+*.suo
+*.cache
+*.dll
+*.exe
+
+# MAUI specific
+Resources/images/
+*.aps
+*.ncb
+*.opt
+*.plg
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+*.xcuserdata
+*.xccheckout
+*.moved-aside
+DerivedData
+*.hmap
+*.ipa
+*.xcuserstate
+project.xcworkspace
+
+# Database files
+*.mdf
+*.ldf
+*.ndf
+
+# Log files
+*.log
+
+# Temporary files
+*.tmp
+*.temp

@@ -1,0 +1,242 @@
+@page "/items"
+
+<PageTitle>Item Management</PageTitle>
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3 class="mb-0">Item Management</h3>
+        <div class="d-flex gap-2">
+            <input class="form-control" type="text" placeholder="Search items..." @bind="searchText" @oninput="PerformSearch" style="width: 200px;" />
+            <button class="btn btn-warning" @onclick="SearchItem">
+                <i class="bi bi-search"></i> Search
+            </button>
+        </div>
+    </div>
+    
+    <!-- Input Form -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Item ID</label>
+                            <input class="form-control" @bind="item.Id" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Item Name</label>
+                            <input class="form-control" @bind="item.Name" />
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Description</label>
+                            <textarea class="form-control" @bind="item.Description" rows="2"></textarea>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Quantity</label>
+                            <input class="form-control" @bind="item.Quantity" type="number" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Price</label>
+                            <input class="form-control" @bind="item.Price" type="number" step="0.01" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Date</label>
+                            <input class="form-control" @bind="item.Date" type="date" />
+                        </div>
+                        <div class="col-12">
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-primary" @onclick="AddItem">Add</button>
+                                <button class="btn btn-success" @onclick="UpdateItem">Update</button>
+                                <button class="btn btn-info" @onclick="ViewItems">View</button>
+                                <button class="btn btn-secondary" @onclick="ClearForm">Clear</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Data Grid -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <table class="table table-striped table-hover">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>ID</th>
+                                <th>Name</th>
+                                <th>Description</th>
+                                <th>Quantity</th>
+                                <th>Price</th>
+                                <th>Date</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (filteredItems != null && filteredItems.Any())
+                            {
+                                @foreach (var item in filteredItems)
+                                {
+                                    <tr>
+                                        <td>@item.Id</td>
+                                        <td>@item.Name</td>
+                                        <td>@item.Description</td>
+                                        <td>@item.Quantity</td>
+                                        <td>@item.Price.ToString("C")</td>
+                                        <td>@item.Date.ToShortDateString()</td>
+                                        <td>
+                                            <button class="btn btn-sm btn-outline-primary" @onclick="() => SelectItem(item)">Edit</button>
+                                            <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteItemById(item.Id)">Delete</button>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                            else
+                            {
+                                <tr>
+                                    <td colspan="7" class="text-center">No items found</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private Item item = new Item();
+    private List<Item> items = new List<Item>();
+    private List<Item> filteredItems = new List<Item>();
+    private string searchText = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadItems();
+    }
+
+    private async Task LoadItems()
+    {
+        // TODO: Replace with actual data service call
+        items = new List<Item>
+        {
+           
+        };
+        
+        // Initialize filtered items
+        filteredItems = items.ToList();
+    }
+
+    private void PerformSearch()
+    {
+        if (string.IsNullOrWhiteSpace(searchText))
+        {
+            filteredItems = items.ToList();
+        }
+        else
+        {
+            filteredItems = items.Where(i => 
+                i.Id.Contains(searchText, StringComparison.OrdinalIgnoreCase) ||
+                i.Name.Contains(searchText, StringComparison.OrdinalIgnoreCase) ||
+                i.Description.Contains(searchText, StringComparison.OrdinalIgnoreCase)
+            ).ToList();
+        }
+    }
+
+    private async Task SearchItem()
+    {
+        PerformSearch();
+    }
+
+    private async Task AddItem()
+    {
+        if (!string.IsNullOrEmpty(item.Id) && !string.IsNullOrEmpty(item.Name))
+        {
+            items.Add(new Item
+            {
+                Id = item.Id,
+                Name = item.Name,
+                Description = item.Description,
+                Quantity = item.Quantity,
+                Price = item.Price,
+                Date = item.Date
+            });
+            
+            // Refresh filtered items
+            PerformSearch();
+            await ClearForm();
+        }
+    }
+
+    private async Task UpdateItem()
+    {
+        var existingItem = items.FirstOrDefault(i => i.Id == item.Id);
+        if (existingItem != null)
+        {
+            existingItem.Name = item.Name;
+            existingItem.Description = item.Description;
+            existingItem.Quantity = item.Quantity;
+            existingItem.Price = item.Price;
+            existingItem.Date = item.Date;
+            
+            // Refresh filtered items
+            PerformSearch();
+        }
+    }
+
+    private async Task ViewItems()
+    {
+        await LoadItems();
+    }
+
+    private async Task DeleteItem()
+    {
+        if (!string.IsNullOrEmpty(item.Id))
+        {
+            items = items.Where(i => i.Id != item.Id).ToList();
+            
+            // Refresh filtered items
+            PerformSearch();
+            await ClearForm();
+        }
+    }
+
+    private async Task DeleteItemById(string id)
+    {
+        items = items.Where(i => i.Id != id).ToList();
+        
+        // Refresh filtered items
+        PerformSearch();
+    }
+
+    private async Task ClearForm()
+    {
+        item = new Item();
+    }
+
+    private void SelectItem(Item selectedItem)
+    {
+        item = new Item
+        {
+            Id = selectedItem.Id,
+            Name = selectedItem.Name,
+            Description = selectedItem.Description,
+            Quantity = selectedItem.Quantity,
+            Price = selectedItem.Price,
+            Date = selectedItem.Date
+        };
+    }
+
+    public class Item
+    {
+        public string Id { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public int Quantity { get; set; }
+        public decimal Price { get; set; }
+        public DateTime Date { get; set; } = DateTime.Now;
+    }
+}
